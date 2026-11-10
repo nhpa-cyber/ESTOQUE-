@@ -247,7 +247,8 @@ export const ExportGradeView: React.FC<ExportGradeViewProps> = ({
         const resRow = (data.res || []).find((r) => r[0] === code);
 
         const desc = ecItem?.desc || calc?.d || resRow?.[1] || `PRODUTO ${code}`;
-        const disp020502 = ecItem ? Math.round(ecItem.disp) : Math.round(row.length > 11 ? parseColL(row[11]) : 0);
+        const rawDisp = ecItem ? Math.round(ecItem.disp) : Math.round(row.length > 11 ? parseColL(row[11]) : 0);
+        const disp020502 = Math.max(0, rawDisp);
 
         // Ajuste Diferença Diária / Congelamento / 02.05.02 (Sobra soma, Falta reduz)
         const ajusteDiferenca = Math.round(diferencasMap[code] || 0);
@@ -295,7 +296,7 @@ export const ExportGradeView: React.FC<ExportGradeViewProps> = ({
         const calc = calculatedMap[code];
         const desc = calc?.d || r[1] || `PRODUTO ${code}`;
         const fatorCx = calc?.V || r[4] || 1;
-        const disp020502 = Math.round(calc?.H !== undefined ? calc.H : (fatorCx > 1 ? Math.floor(r[3] / fatorCx) : r[3]));
+        const disp020502 = Math.max(0, Math.round(calc?.H !== undefined ? calc.H : (fatorCx > 1 ? Math.floor(r[3] / fatorCx) : r[3])));
 
         const ajusteDiferenca = Math.round(diferencasMap[code] || 0);
         const totalAvariasUnid = avariasMap[code] || 0;

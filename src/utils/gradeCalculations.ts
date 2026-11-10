@@ -212,7 +212,8 @@ export function calculateExpectedGrade(
       const resRow = (data.res || []).find((r) => r[0] === code);
 
       const desc = ecItem?.desc || calc?.d || resRow?.[1] || `PRODUTO ${code}`;
-      const disp020502 = ecItem ? Math.round(ecItem.disp) : Math.round(row.length > 11 ? parseColL(row[11]) : 0);
+      const rawDisp = ecItem ? Math.round(ecItem.disp) : Math.round(row.length > 11 ? parseColL(row[11]) : 0);
+      const disp020502 = Math.max(0, rawDisp);
 
       const ajusteDiferenca = Math.round(diferencasMap.get(code) || 0);
       const fatorCx = calc?.V || resRow?.[4] || 1;

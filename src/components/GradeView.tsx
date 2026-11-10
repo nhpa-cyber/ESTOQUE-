@@ -278,7 +278,8 @@ export const GradeView: React.FC<GradeViewProps> = ({
           const tipo = ecItem?.tipo || calc?.t || resRow?.[2] || 'cx';
 
           // Disponível na 02.05.02 (Coluna L / Promax)
-          const disp020502 = ecItem ? Math.round(ecItem.disp) : Math.round(row.length > 11 ? parseColL(row[11]) : 0);
+          const rawDisp = ecItem ? Math.round(ecItem.disp) : Math.round(row.length > 11 ? parseColL(row[11]) : 0);
+          const disp020502 = Math.max(0, rawDisp);
 
           // Saldo: Se o relatório 02.03.04 foi importado, ele passa a ser a fonte de saldo oficial da Grade.
           let saldo = 0;
