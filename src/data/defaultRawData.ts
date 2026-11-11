@@ -53,16 +53,22 @@ const seededMen: MenRow[] = [...men_a, ...men_b, ...cervegelasMen].map((row) => 
   return [r[0], r[1], r[2], r[3], days, soma] as MenRow;
 });
 
+import {
+  canonicalOfficialRes,
+  canonicalOfficialAj,
+  canonicalOfficialDesativados,
+} from './canonicalOfficialData';
+
 export const initialRawData: RawData = {
   xs,
-  aj,
+  aj: canonicalOfficialAj,
   dia,
-  res: zeroedRes,
-  gradeRes: zeroedRes.map((r) => [...r] as typeof r),
+  res: canonicalOfficialRes,
+  gradeRes: canonicalOfficialRes.map((r) => [...r] as typeof r),
   men: seededMen,
   ec,
   gradeEc: undefined,
   ec0304: undefined,
   recontagens: initialRecontagens,
-  desativados: [6181],
+  desativados: canonicalOfficialDesativados,
 };

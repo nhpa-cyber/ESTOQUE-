@@ -8,6 +8,7 @@ import { CalendarHistoryWidget } from './CalendarHistoryWidget';
 import { SaveDaily020502Modal } from './SaveDaily020502Modal';
 import { PrintTop30Modal } from './PrintTop30Modal';
 import { getMatchedProductsFrom021101, MatchedContagemInfo } from '../utils/contagem021101';
+import { saveDevolucaoReminderDate, loadDevolucaoReminderDate } from '../firebase';
 
 interface DashboardViewProps {
   data: RawData;
@@ -94,15 +95,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [saveModalInitialDate, setSaveModalInitialDate] = useState<string | undefined>(undefined);
   const [showDevolucaoReminder, setShowDevolucaoReminder] = useState(false);
+  const [lastReminderDate, setLastReminderDate] = useState<string | null>(null);
 
-  // Confirma o lembrete e grava a data de hoje no localStorage para não exibir novamente no mesmo dia
+  // Carrega a data do lembrete diretamente do Firebase Firestore
+  useEffect(() => {
+    let isMounted = true;
+    loadDevolucaoReminderDate().then((d) => {
+      if (d && isMounted) {
+        setLastReminderDate(d);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Confirma o lembrete e grava no Firestore
   const handleConfirmDevolucaoReminder = () => {
     const today = new Date().toISOString().slice(0, 10);
-    try {
-      localStorage.setItem('devolucao_reminder_last_date', today);
-    } catch (e) {
-      console.warn('LocalStorage error:', e);
-    }
+    setLastReminderDate(today);
+    saveDevolucaoReminderDate(today);
     setShowDevolucaoReminder(false);
     onOpenImport020502?.();
   };
@@ -110,14 +122,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Ao clicar em IMPORTAR 02.05.02: exibe o lembrete apenas na 1ª vez do dia
   const handleOpenImportWithReminder = () => {
     const today = new Date().toISOString().slice(0, 10);
-    let lastDate: string | null = null;
-    try {
-      lastDate = localStorage.getItem('devolucao_reminder_last_date');
-    } catch (e) {
-      console.warn('LocalStorage error:', e);
-    }
-
-    if (lastDate === today) {
+    if (lastReminderDate === today) {
       // Já exibiu e confirmou hoje: abre a importação diretamente sem abrir o popup
       onOpenImport020502?.();
     } else {
@@ -426,40 +431,48 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
     if (selectedDay === null) {
       // MODO CONCILIAÇÃO ATUAL (AO VIVO)
-      const A = [...activeProducts].sort((a, b) => a.A - b.A);
-      const F = A.slice(0, 243);
-      const Sb = [...A].reverse().slice(0, 243);
-
       const sv0 = (r: CalculatedProduct) => (data.xs.includes(r.c) ? 0 : r.S);
 
-      const totalF = sum(F, (r) => -r.S);
-      const totalS = sum(Sb, sv0);
+      // FALTAS: apenas produtos com divergência real de falta em caixas (R < 0)
+      const faltas = activeProducts.filter((r) => r.R < 0);
+      faltas.sort((a, b) => a.S - b.S); // Maior perda financeira (mais negativo) primeiro
 
-      // Análise automática aplicada a TODOS os itens (do 1 ao último)
-      const fRows = F.map((r, i) => {
+      // SOBRAS: apenas produtos com divergência real de sobra em caixas (R > 0)
+      const sobras = activeProducts.filter((r) => r.R > 0 && sv0(r) >= 0);
+      sobras.sort((a, b) => sv0(b) - sv0(a)); // Maior sobra financeira primeiro
+
+      const totalF = sum(faltas, (r) => -r.S);
+      const totalS = sum(sobras, sv0);
+
+      // Ranking de Faltas: apenas itens com falta real
+      const fRows = faltas.map((r, i) => {
         const qtde = Math.abs(r.R);
+        const valor = -r.S;
         const analysis = analyzeRow(r.c, true, qtde);
         return {
           rank: i + 1,
           c: r.c,
           d: r.d,
           qtde,
-          valor: -r.S,
-          peso: totalF ? -r.S / totalF : 0,
+          valor,
+          peso: totalF > 0 ? valor / totalF : 0,
           analysis,
         };
       });
 
-      const sRows = Sb.map((r, i) => {
+      // Ranking de Sobras: apenas itens com sobra real
+      const sRows = sobras.map((r, i) => {
+        const valS = sv0(r);
         const qtde = Math.abs(r.R);
+        const valor = valS;
         const analysis = analyzeRow(r.c, false, qtde);
         return {
           rank: i + 1,
           c: r.c,
           d: r.d,
           qtde,
-          valor: sv0(r),
-          peso: totalS ? sv0(r) / totalS : 0,
+          valor,
+          peso: totalS > 0 ? valor / totalS : 0,
           analysis,
         };
       });
@@ -503,44 +516,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       };
     });
 
-    // Faltas do dia selecionado: ordenadas por valor decrescente
-    const faltasItems = allItems.filter((item) => item.isFalta);
+    // Faltas do dia selecionado: apenas com falta real (qtde > 0 e diff < 0), ordenadas por valor decrescente
+    const faltasItems = allItems.filter((item) => item.isFalta && item.qtde > 0);
     faltasItems.sort((a, b) => b.valorFalta - a.valorFalta);
 
-    // Sobras do dia selecionado: ordenadas por valor decrescente
-    const sobrasItems = allItems.filter((item) => item.isSobra);
+    // Sobras do dia selecionado: apenas com sobra real (qtde > 0 e diff > 0), ordenadas por valor decrescente
+    const sobrasItems = allItems.filter((item) => item.isSobra && item.qtde > 0);
     sobrasItems.sort((a, b) => b.valorSobra - a.valorSobra);
-
-    // Complementa com itens zerados para manter 243 itens
-    const zeroItems = allItems.filter((item) => !item.isFalta && !item.isSobra);
-    const fullFList = [...faltasItems, ...zeroItems].slice(0, 243);
-    const fullSList = [...sobrasItems, ...zeroItems].slice(0, 243);
 
     const totalF = sum(faltasItems, (item) => item.valorFalta);
     const totalS = sum(sobrasItems, (item) => item.valorSobra);
 
-    const fRows = fullFList.map((item, i) => {
-      const analysis = analyzeRow(item.c, true, item.isFalta ? item.qtde : 0);
+    const fRows = faltasItems.map((item, i) => {
+      const analysis = analyzeRow(item.c, true, item.qtde);
       return {
         rank: i + 1,
         c: item.c,
         d: item.d,
-        qtde: item.isFalta ? item.qtde : 0,
+        qtde: item.qtde,
         valor: item.valorFalta,
-        peso: totalF ? item.valorFalta / totalF : 0,
+        peso: totalF > 0 ? item.valorFalta / totalF : 0,
         analysis,
       };
     });
 
-    const sRows = fullSList.map((item, i) => {
-      const analysis = analyzeRow(item.c, false, item.isSobra ? item.qtde : 0);
+    const sRows = sobrasItems.map((item, i) => {
+      const analysis = analyzeRow(item.c, false, item.qtde);
       return {
         rank: i + 1,
         c: item.c,
         d: item.d,
-        qtde: item.isSobra ? item.qtde : 0,
+        qtde: item.qtde,
         valor: item.valorSobra,
-        peso: totalS ? item.valorSobra / totalS : 0,
+        peso: totalS > 0 ? item.valorSobra / totalS : 0,
         analysis,
       };
     });

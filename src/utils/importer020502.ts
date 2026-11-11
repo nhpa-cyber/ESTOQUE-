@@ -335,30 +335,53 @@ export function process020502(
   }
 
   // Se a coluna de produto não foi encontrada ou é inválida, localiza a coluna que mais possui códigos de produto
+  // IMPORTANTE: Coluna 0 é Armazém ('01'), NUNCA produto. Padrão Promax 02.05.02 é ip = 3.
   const sampleData = body.slice(0, 50);
-  const maxCols = Math.max(...sampleData.map((r) => r.length), 0);
-  let bestCol = -1;
-  let maxValidCodes = 0;
+  const isStandardPromax020502 = sampleData.some(
+    (r) =>
+      r.length > 5 &&
+      (String(r[0] || '').trim() === '01' || String(r[0] || '').trim() === '1') &&
+      /^\d+$/.test(String(r[3] || '').trim().replace(/^0+/, '')) &&
+      /[a-zA-Z]/.test(String(r[4] || ''))
+  );
 
-  for (let c = 0; c < maxCols; c++) {
-    let count = 0;
-    for (const r of sampleData) {
-      const v = String(r[c] || '').trim().replace(/^0+/, '');
-      const num = Number(v);
-      if (!isNaN(num) && num > 10 && num < 9999999) {
-        count++;
+  if (isStandardPromax020502) {
+    ip = 3;
+    id = 4;
+    it = 5;
+    if (ie < 0) ie = body.some((r) => r.length > 27) ? 27 : 11;
+    if (ic < 0) ic = body.some((r) => r.length > 28) ? 28 : 12;
+  } else if (ip < 0) {
+    const maxCols = Math.max(...sampleData.map((r) => r.length), 0);
+    let bestCol = -1;
+    let maxValidCodes = 0;
+
+    // Procura colunas a partir do índice 1 (nunca coluna 0 que é armazém)
+    for (let c = 1; c < maxCols; c++) {
+      let count = 0;
+      for (const r of sampleData) {
+        const v = String(r[c] || '').trim().replace(/^0+/, '');
+        const num = Number(v);
+        // Código de produto válido no Promax tem mais de 2 dígitos e coluna adjacente com descrição
+        if (!isNaN(num) && num >= 100 && num < 9999999) {
+          count++;
+        }
+      }
+      if (count > maxValidCodes) {
+        maxValidCodes = count;
+        bestCol = c;
       }
     }
-    if (count > maxValidCodes) {
-      maxValidCodes = count;
-      bestCol = c;
-    }
-  }
 
-  if (ip < 0 || (bestCol >= 0 && maxValidCodes >= 5 && maxValidCodes > sampleData.length * 0.4)) {
-    ip = bestCol;
-    if (id <= ip) id = ip + 1;
-    if (it <= ip) it = ip + 2;
+    if (bestCol >= 1 && maxValidCodes >= 5) {
+      ip = bestCol;
+      if (id <= ip) id = ip + 1;
+      if (it <= ip) it = ip + 2;
+    } else {
+      ip = 3;
+      id = 4;
+      it = 5;
+    }
   }
 
   // Filtra linhas com código de produto válido
@@ -370,19 +393,20 @@ export function process020502(
     return true;
   });
 
-  if (body.length === 0) {
+  if (body.length < 20) {
     return {
       success: false,
       message:
-        'Não foi possível identificar as linhas de produtos no arquivo. Verifique se o arquivo corresponde ao relatório 02.05.02 do Promax.',
+        `O arquivo enviado contém apenas ${body.length} produtos válidos. Para proteger a conciliação contra perdas ou corrupção acidental, relatórios com menos de 20 produtos são rejeitados. A base atual foi preservada com total segurança.`,
     };
   }
 
   // Totais antes da importação
   const getTotals = (calcList: ReturnType<typeof calculateProducts>['C']) => {
-    const A = [...calcList].sort((a, b) => a.A - b.A);
-    const tf = sum(A.slice(0, 243), (r) => -r.S);
-    const ts = sum(A.reverse().slice(0, 243), (r) =>
+    const desativadosSet = new Set(currentData.desativados || []);
+    const active = calcList.filter((p) => !desativadosSet.has(p.c) && !p.desativado);
+    const tf = sum(active.filter((r) => r.S < 0), (r) => -r.S);
+    const ts = sum(active.filter((r) => r.S > 0), (r) =>
       currentData.xs.includes(r.c) ? 0 : r.S
     );
     return { tf, ts, sd: ts - tf };
@@ -499,16 +523,25 @@ export function process020502(
       ach++;
       rowCopy[3] = fileItem.estoque;   // Disponível Promax -> G no Resumo
 
-      // Lê diretamente a contagem física (inventário) do arquivo 02.05.02
-      rowCopy[7] = fileItem.contagem;
+      // Lê a contagem física se o arquivo contiver contagens; caso contrário preserva contagem existente
+      const hasAnyCountInFile = Object.values(fileProductsMap).some((p) => p.contagem > 0);
+      if (hasAnyCountInFile) {
+        rowCopy[7] = fileItem.contagem;
+      } else if (rowCopy[7] === 0 || rowCopy[7] === undefined) {
+        // Se o arquivo só continha estoque e não tinha contagem, inicializa alinhado ao estoque
+        rowCopy[7] = fileItem.estoque;
+      }
       rowCopy[8] = 0;                  // P (repack) zerado
       rowCopy[9] = 0;
       rowCopy[10] = 0;
       rowCopy[11] = 0;
     } else {
       aus++;
-      rowCopy[3] = 0;
-      rowCopy[7] = 0;
+      // Produtos que não constam no arquivo: se já tinham estoque zerado, mantém zerado; não zera se for item com histórico
+      if (rowCopy[3] === 0 && rowCopy[7] === 0) {
+        rowCopy[3] = 0;
+        rowCopy[7] = 0;
+      }
       rowCopy[8] = 0;
       rowCopy[9] = 0;
       rowCopy[10] = 0;

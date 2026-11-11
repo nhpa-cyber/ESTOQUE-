@@ -42,18 +42,16 @@ export const SalvarDifModal: React.FC<SalvarDifModalProps> = ({
   const desativadosSet = new Set(desativados || []);
   const activeProducts = calculated.filter((p) => !desativadosSet.has(p.c) && !p.desativado);
 
-  const A = [...activeProducts].sort((a, b) => a.A - b.A);
-  const F = A.slice(0, 243);
-  const Sb = [...A].reverse().slice(0, 243);
-
   const sv0 = (r: CalculatedProduct) => (xs.includes(r.c) ? 0 : r.S);
 
-  const totalF = sum(F, (r) => -r.S);
-  const totalS = sum(Sb, sv0);
-  const saldo = totalS - totalF;
+  const faltas = activeProducts.filter((r) => r.S < 0 || r.R < 0);
+  faltas.sort((a, b) => a.S - b.S);
+  const sobras = activeProducts.filter((r) => sv0(r) > 0 || r.R > 0);
+  sobras.sort((a, b) => b.S - a.S);
 
-  const faltas = F.filter((r) => r.S < 0 || r.R < 0);
-  const sobras = Sb.filter((r) => sv0(r) > 0 || r.R > 0);
+  const totalF = sum(faltas, (r) => -r.S);
+  const totalS = sum(sobras, sv0);
+  const saldo = totalS - totalF;
   const divergenciasCount = faltas.length + sobras.length;
 
   const handleConfirm = async () => {

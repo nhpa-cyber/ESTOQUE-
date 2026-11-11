@@ -7,7 +7,14 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { RawData, ResRow, AjustesData, MenRow, DiaRow, DashboardSnapshot, EstoqueCentralData, SavedPopupItem } from './data/types';
 import { initialRawData, cervegelasRes, cervegelasMen } from './data/defaultRawData';
 import { calculateProducts, CERVEGELA_CODES } from './utils/calc';
-import { saveStateToFirestore, loadStateFromFirestore, logActionToFirestore, subscribeToState } from './firebase';
+import {
+  saveStateToFirestore,
+  loadStateFromFirestore,
+  logActionToFirestore,
+  subscribeToState,
+  savePopupsToFirestore,
+  loadPopupsFromFirestore,
+} from './firebase';
 import { process020502, parseColL } from './utils/importer020502';
 import { process020304 } from './utils/importer020304';
 import { processTabelaPrecos } from './utils/importerPrecos';
@@ -40,78 +47,20 @@ import { CheckLancamentoGradeView } from './components/CheckLancamentoGradeView'
 
 type TabKey = 'dashboard' | 'popups_salvos' | 'export_grade' | 'check_grade' | 'resumo' | 'ajustes' | 'dif_diaria' | 'dif_mensal' | 'ec' | 'recontagem' | 'produtos';
 
-const STORAGE_KEY = 'estoque_guarabira_state_v5';
-
 export default function App() {
-  const [data, setData] = useState<RawData>(() => {
-    localStorage.removeItem('estoque_guarabira_state');
-    localStorage.removeItem('estoque_guarabira_state_v2');
-    localStorage.removeItem('estoque_guarabira_state_v3');
-    localStorage.removeItem('estoque_guarabira_state_v4');
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        const parsed: RawData = JSON.parse(saved);
-        // Garante a remoção definitiva do produto 6181
-        if (parsed.res) parsed.res = parsed.res.filter((r) => r[0] !== 6181);
-        if (parsed.gradeRes) parsed.gradeRes = parsed.gradeRes.filter((r) => r[0] !== 6181);
-        if (parsed.dia) parsed.dia = parsed.dia.filter((r) => r[0] !== 6181);
-        if (parsed.men) parsed.men = parsed.men.filter((r) => r[0] !== 6181);
-        if (parsed.ec?.r) parsed.ec.r = parsed.ec.r.filter((r) => r[3] !== 6181 && r[0] !== 6181);
-        if (parsed.gradeEc?.r) parsed.gradeEc.r = parsed.gradeEc.r.filter((r) => r[3] !== 6181 && r[0] !== 6181);
-
-        // Garante que as cervegelas estejam ativas e presentes na plataforma
-        const desat = new Set(parsed.desativados || []);
-        desat.add(6181);
-        CERVEGELA_CODES.forEach((c) => desat.delete(c));
-        parsed.desativados = Array.from(desat);
-
-        if (Array.isArray(parsed.res)) {
-          const resCodes = new Set(parsed.res.map((r) => r[0]));
-          cervegelasRes.forEach((cRow) => {
-            if (!resCodes.has(cRow[0])) {
-              parsed.res.push([...cRow]);
-            }
-          });
-        }
-
-        if (Array.isArray(parsed.men)) {
-          const menCodes = new Set(parsed.men.map((r) => r[0]));
-          cervegelasMen.forEach((mRow) => {
-            if (!menCodes.has(mRow[0])) {
-              parsed.men.push([...mRow]);
-            }
-          });
-        }
-
-        return parsed;
-      } catch (e) {
-        console.error('Erro ao ler cache local:', e);
-      }
-    }
-    return initialRawData;
-  });
+  // Estado centralizado e persistido 100% no Firebase Firestore
+  const [data, setData] = useState<RawData>(initialRawData);
 
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
   const [history, setHistory] = useState<{ data: RawData; desc: string }[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
-  // Pop-ups Salvos para Auditoria e Print
-  const [savedPopups, setSavedPopups] = useState<SavedPopupItem[]>(() => {
-    try {
-      const raw = localStorage.getItem('estoque_guarabira_saved_popups');
-      const list: SavedPopupItem[] = raw ? JSON.parse(raw) : [];
-      return list.filter((item) => item.code !== 6181);
-    } catch {
-      return [];
-    }
-  });
+  // Pop-ups Salvos para Auditoria persistidos exclusivamente no Firestore
+  const [savedPopups, setSavedPopups] = useState<SavedPopupItem[]>([]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('estoque_guarabira_saved_popups', JSON.stringify(savedPopups));
-    } catch (e) {
-      console.warn('LocalStorage error:', e);
+    if (savedPopups.length > 0) {
+      savePopupsToFirestore(savedPopups);
     }
   }, [savedPopups]);
 
@@ -176,10 +125,16 @@ export default function App() {
     let isMounted = true;
 
     async function initFirestore() {
-      const remote = await loadStateFromFirestore();
+      const [remote, popups] = await Promise.all([
+        loadStateFromFirestore(),
+        loadPopupsFromFirestore(),
+      ]);
       if (remote && isMounted) {
         setData(remote);
         setIsRealtimeActive(true);
+      }
+      if (popups && popups.length > 0 && isMounted) {
+        setSavedPopups(popups);
       }
     }
     initFirestore();
@@ -211,11 +166,6 @@ export default function App() {
       unsubscribe();
     };
   }, []);
-
-  // Salva no LocalStorage sempre que houver alteração
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [data]);
 
   // Push para histórico
   const pushHistory = (newData: RawData, description: string) => {
@@ -573,8 +523,9 @@ export default function App() {
         };
 
         const actionDesc = `Congelamento e salvamento automático da conciliação no Dia ${targetDay} (${nonZeroCount} divergências)`;
-        updateDataWithHistory(nextData, actionDesc);
-        await saveStateToFirestore(nextData, 'Congelar Dia ' + targetDay, actionDesc);
+        pushHistory(nextData, actionDesc);
+        setData(nextData);
+        await saveStateToFirestore(nextData, 'Congelar Dia ' + targetDay, actionDesc, true);
 
         setConfirmModal((prev) => ({ ...prev, isOpen: false }));
         setToastMessage(`✅ Conciliação do Dia ${targetDay} congelada e salva com sucesso (${nonZeroCount} divergências)!`);
@@ -643,10 +594,11 @@ export default function App() {
     };
 
     const actionDesc = `Salva DIF da conciliação no Dia ${targetDay} da DIF Mensal (${nonZeroCount} divergências)`;
-    updateDataWithHistory(nextData, actionDesc);
+    pushHistory(nextData, actionDesc);
+    setData(nextData);
 
-    // 4. Salva e sincroniza com Firebase
-    const success = await saveStateToFirestore(nextData, 'Salvamento DIF Dia ' + targetDay, actionDesc);
+    // 4. Salva e sincroniza com Firebase (imediato com backoff resiliente)
+    const success = await saveStateToFirestore(nextData, 'Salvamento DIF Dia ' + targetDay, actionDesc, true);
     if (success) {
       alert(`DIF do Dia ${targetDay} salva com sucesso na DIF Mensal e sincronizada com o Firebase!\n\n${updatedCount} produtos atualizados no calendário (${nonZeroCount} com divergência).`);
     } else {

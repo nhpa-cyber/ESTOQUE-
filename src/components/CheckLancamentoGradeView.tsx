@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { RawData, CalculatedProduct } from '../data/types';
+import { saveGradeCheckToFirestore, loadGradeCheckFromFirestore } from '../firebase';
 import {
   calculateExpectedGrade,
   parseLancamentoGradeFile,
@@ -40,19 +41,24 @@ export const CheckLancamentoGradeView: React.FC<CheckLancamentoGradeViewProps> =
   calculatedMap,
   onNavigateToExportGrade,
 }) => {
-  // Estado dos itens lançados carregados
+  // Estado dos itens lançados carregados persistidos no Firestore
   const [launchedData, setLaunchedData] = useState<{
     items: LancadoGradeItem[];
     fileName: string;
     checkedAt: string;
-  } | null>(() => {
-    try {
-      const saved = localStorage.getItem('estoque_grade_check_cache');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  } | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    loadGradeCheckFromFirestore().then((saved) => {
+      if (saved && isMounted) {
+        setLaunchedData(saved);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
   const [pastedText, setPastedText] = useState('');
@@ -86,18 +92,10 @@ export const CheckLancamentoGradeView: React.FC<CheckLancamentoGradeViewProps> =
     return compareGradeLaunch(expectedMap, launchedData.items, calculatedMap);
   }, [expectedMap, launchedData, calculatedMap]);
 
-  // Salva no cache local para persistência rápida
+  // Salva no Firestore para sincronização em nuvem
   const updateLaunchedData = (newData: { items: LancadoGradeItem[]; fileName: string; checkedAt: string } | null) => {
     setLaunchedData(newData);
-    if (newData) {
-      try {
-        localStorage.setItem('estoque_grade_check_cache', JSON.stringify(newData));
-      } catch (e) {
-        console.warn('LocalStorage error:', e);
-      }
-    } else {
-      localStorage.removeItem('estoque_grade_check_cache');
-    }
+    saveGradeCheckToFirestore(newData);
   };
 
   // Upload de arquivo

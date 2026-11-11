@@ -51,15 +51,15 @@ export function calculateProducts(data: RawData): CalcResult {
     const Oo = ro + (s.O[c] || 0);
     const J = b + Nn - M + P + Oo;
     const W = U / V;
-    // Saldo fiscal não pode ser negativo na apuração de estoque (furo fiscal no Promax não gera sobra física)
-    const G_calc = G < 0 ? 0 : G;
-    const I = G_calc * W;
+    // O usuário instruiu: "Como o disp está em negativo considere uma sobra"
+    // Portanto, não forçamos G a 0 quando negativo; a apuração (J - G e K - H) reflete a sobra real no estoque
+    const I = G * W;
     const L = J * W;
-    const H = G_calc / V < 1 ? 0 : Math.round(G_calc / V);
-    const K = J / V < 1 ? 0 : Math.round(J / V);
-    const Sd = isDesativado ? 0 : (L < 0 ? 0 : L - I);
+    const H = Math.round(G / V);
+    const K = Math.round(J / V);
+    const Sd = isDesativado ? 0 : (L - I);
     const R = isDesativado ? 0 : Math.round(K - H);
-    const Q = isDesativado ? 0 : Math.round(J - G_calc);
+    const Q = isDesativado ? 0 : Math.round(J - G);
 
     return {
       c,

@@ -51,7 +51,7 @@ export const ExportGradeView: React.FC<ExportGradeViewProps> = ({
 }) => {
   const [query, setQuery] = useState('');
   const [viewMode, setViewMode] = useState<'oficial' | 'detalhado'>('oficial');
-  const [filterMode, setFilterMode] = useState<'grade_valid' | 'all' | 'adjustments' | 'both' | 'zero'>('grade_valid');
+  const [filterMode, setFilterMode] = useState<'all' | 'grade_valid' | 'zero'>('all');
   const [codigoGradePadrao, setCodigoGradePadrao] = useState<number>(1);
   const [quantidadeReservaPadrao, setQuantidadeReservaPadrao] = useState<number>(0);
   const [copied, setCopied] = useState(false);
@@ -405,23 +405,13 @@ export const ExportGradeView: React.FC<ExportGradeViewProps> = ({
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rawExportRows.filter((r) => {
-      // Se o usuário digitou uma busca específica (por código ou descrição), exibe o item correspondente mesmo se zerado
+      // Se o usuário digitou uma busca específica (por código ou descrição), exibe o item correspondente
       if (q) {
-        const matchesQuery = (r.code + ' ' + r.desc).toLowerCase().includes(q);
-        if (!matchesQuery) return false;
-        if (filterMode === 'both' && !r.hasBoth) return false;
-        if (filterMode === 'adjustments' && !r.hasDiferenca && !r.hasAvaria) return false;
-        return true;
+        return (r.code + ' ' + r.desc).toLowerCase().includes(q);
       }
 
       // Filtros rápidos quando não há busca por texto
       if (filterMode === 'grade_valid' && r.quantidadeProduto <= 0) {
-        return false;
-      }
-      if (filterMode === 'adjustments' && !r.hasDiferenca && !r.hasAvaria) {
-        return false;
-      }
-      if (filterMode === 'both' && !r.hasBoth) {
         return false;
       }
       if (filterMode === 'zero' && r.quantidadeProduto > 0) {
@@ -746,68 +736,42 @@ export const ExportGradeView: React.FC<ExportGradeViewProps> = ({
 
             <button
               type="button"
-              onClick={() => setFilterMode('grade_valid')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
-                filterMode === 'grade_valid'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-              }`}
-              title="Exibir produtos com quantidade positiva prontos para exportar"
-            >
-              <span>✓ Na Grade ({summaryKpis.validGradeCount})</span>
-            </button>
-
-            <button
-              type="button"
               onClick={() => setFilterMode('all')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
                 filterMode === 'all'
                   ? 'bg-slate-900 text-white shadow-sm'
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
               }`}
-              title="Exibir todos os produtos do relatório 02.05.02 (inclusive zerados)"
+              title="Exibir todos os produtos do relatório 02.05.02"
             >
               <span>Todos da 02.05.02 ({summaryKpis.totalEc})</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setFilterMode('both')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
-                filterMode === 'both'
-                  ? 'bg-indigo-600 text-white shadow-sm'
+              onClick={() => setFilterMode('grade_valid')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
+                filterMode === 'grade_valid'
+                  ? 'bg-emerald-600 text-white shadow-sm'
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
               }`}
-              title="Filtrar apenas produtos que possuem AMBOS: DIF Diária E Quebras/Avarias"
+              title="Exibir produtos com quantidade positiva lançados na grade"
             >
-              <Flame size={12} />
-              <span>DIF + Quebras ({summaryKpis.bothCount})</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setFilterMode('adjustments')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
-                filterMode === 'adjustments'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-              }`}
-              title="Filtrar produtos com qualquer ajuste (DIF diária ou quebras)"
-            >
-              <span>Com Ajustes ({summaryKpis.difItemsCount + summaryKpis.avariaItemsCount - summaryKpis.bothCount})</span>
+              <span>✓ Lançados na Grade ({summaryKpis.validGradeCount})</span>
             </button>
 
             <button
               type="button"
               onClick={() => setFilterMode('zero')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition flex items-center gap-1 ${
+              className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
                 filterMode === 'zero'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  ? 'bg-rose-600 text-white shadow-sm'
+                  : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200'
               }`}
-              title="Produtos com saldo zerado (omitidos da exportação Promax)"
+              title="Filtrar itens que estão na 02.05.02 mas NÃO foram lançados na grade (não constam no lançamento)"
             >
-              <span>Zerados ({summaryKpis.zeroCount})</span>
+              <AlertTriangle size={13} />
+              <span>Itens da 02.05.02 NÃO Lançados na Grade ({summaryKpis.zeroCount})</span>
             </button>
           </div>
 

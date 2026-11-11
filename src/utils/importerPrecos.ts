@@ -204,9 +204,10 @@ export function processTabelaPrecos(
   // Totais antes da atualização dos preços
   const calcsAntes = calculateProducts(currentData).C;
   const getTotals = (calcList: typeof calcsAntes) => {
-    const A = [...calcList].sort((a, b) => a.A - b.A);
-    const tf = sum(A.slice(0, 243), (r) => -r.S);
-    const ts = sum(A.reverse().slice(0, 243), (r) =>
+    const desativadosSet = new Set(currentData.desativados || []);
+    const active = calcList.filter((p) => !desativadosSet.has(p.c) && !p.desativado);
+    const tf = sum(active.filter((r) => r.S < 0), (r) => -r.S);
+    const ts = sum(active.filter((r) => r.S > 0), (r) =>
       currentData.xs.includes(r.c) ? 0 : r.S
     );
     return { tf, ts, sd: ts - tf };
