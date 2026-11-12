@@ -97,6 +97,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [showDevolucaoReminder, setShowDevolucaoReminder] = useState(false);
   const [lastReminderDate, setLastReminderDate] = useState<string | null>(null);
 
+  // No celular/telas menores (< 768px), inicia em 'faltas_only' para leitura limpa sem scroll horizontal excessivo
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setViewMode('faltas_only');
+    }
+  }, []);
+
   // Carrega a data do lembrete diretamente do Firebase Firestore
   useEffect(() => {
     let isMounted = true;
@@ -796,7 +803,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       )}
                     </div>
                   </td>
-                  <td title={r.d}>{r.d}</td>
+                  <td 
+                    title={`${r.d} (Clique/Toque para ações do produto)`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      setSelectedItemForAction({
+                        code: r.c,
+                        desc: r.d,
+                        qtde: r.qtde,
+                        valor: r.valor,
+                        isFalta,
+                      });
+                    }}
+                  >
+                    {r.d}
+                  </td>
                   <td 
                     className="c font-mono"
                     title="Dê DUPLO CLIQUE para salvar este pop-up na aba POP-UPS SALVOS"
@@ -830,6 +851,87 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <section>
+      {/* RESUMO RÁPIDO & AÇÕES PARA CELULAR */}
+      <div className="block md:hidden mx-3 mt-2 mb-2.5 bg-white border border-amber-300 rounded-xl p-3 shadow-sm">
+        {/* Card Saldo Principal */}
+        <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-100">
+          <div>
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">
+              Saldo Final Apurado
+            </span>
+            <span className={`text-xl font-extrabold tabular-nums ${sd < 0 ? 'text-red-700' : sd > 0 ? 'text-emerald-700' : 'text-zinc-800'}`}>
+              {Rt(sd)}
+            </span>
+          </div>
+          <div className="text-right">
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${sd < 0 ? 'bg-red-100 text-red-800' : sd > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-zinc-100 text-zinc-700'}`}>
+              {sd < 0 ? 'Déficit (Falta)' : sd > 0 ? 'Superávit (Sobra)' : 'Equilibrado'}
+            </span>
+          </div>
+        </div>
+
+        {/* Faltas e Sobras Lado a Lado */}
+        <div className="grid grid-cols-2 gap-2 mb-2.5">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-center">
+            <span className="text-[10px] font-bold text-red-800 block">FALTAS ({f.filter(r => r.qtde > 0).length})</span>
+            <span className="text-sm font-extrabold text-red-700 tabular-nums">
+              {tf < 0 ? '-' : ''}R$ {N(tf)}
+            </span>
+          </div>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 text-center">
+            <span className="text-[10px] font-bold text-emerald-800 block">SOBRAS ({s.filter(r => r.qtde > 0).length})</span>
+            <span className="text-sm font-extrabold text-emerald-700 tabular-nums">
+              {ts < 0 ? '-' : ''}R$ {N(ts)}
+            </span>
+          </div>
+        </div>
+
+        {/* Ações Rápidas no Celular */}
+        <div className="grid grid-cols-2 gap-1.5 text-xs">
+          {onOpenImport020502 && (
+            <button
+              type="button"
+              onClick={handleOpenImportWithReminder}
+              className="col-span-2 min-h-[40px] bg-gradient-to-r from-amber-400 to-amber-500 text-zinc-950 font-bold rounded-lg shadow-sm flex items-center justify-center gap-1.5 active:scale-98 transition-transform"
+            >
+              <span>📥</span>
+              <span>IMPORTAR 02.05.02</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsPrintModalOpen(true)}
+            className="min-h-[38px] bg-emerald-700 text-white font-bold rounded-lg flex items-center justify-center gap-1.5 active:scale-98 shadow-sm"
+          >
+            <Camera size={14} />
+            <span>PRINT TOP 30</span>
+          </button>
+          <button
+            type="button"
+            onClick={onSalvar}
+            className="min-h-[38px] bg-blue-700 text-white font-bold rounded-lg flex items-center justify-center gap-1.5 active:scale-98 shadow-sm"
+            title={`Salvar a diferença calculada da conciliação no Dia ${new Date().getDate()} (Hoje) da DIF Mensal`}
+          >
+            <span>💾</span>
+            <span>SALVAR DIF (D{new Date().getDate()})</span>
+          </button>
+          <button
+            type="button"
+            onClick={onCongelar}
+            className="min-h-[36px] bg-zinc-100 border border-zinc-300 text-zinc-800 font-bold rounded-lg active:scale-98"
+          >
+            ❄️ CONGELAR
+          </button>
+          <button
+            type="button"
+            onClick={onLimpar}
+            className="min-h-[36px] bg-zinc-100 border border-zinc-300 text-zinc-800 font-bold rounded-lg active:scale-98"
+          >
+            🧹 LIMPAR DIF
+          </button>
+        </div>
+      </div>
+
       {/* BARRA DE FILTRO E LEGENDA TOTALMENTE RESPONSIVA */}
       <div 
         style={{ 

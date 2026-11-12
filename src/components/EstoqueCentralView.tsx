@@ -204,31 +204,32 @@ export const EstoqueCentralView: React.FC<EstoqueCentralViewProps> = ({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar (código, produto, OK ou NOK)…"
-          size={28}
-          style={{ marginLeft: 'auto' }}
+          className="w-full sm:w-64 sm:ml-auto text-sm"
         />
 
-        <button
-          type="button"
-          onClick={() => {
-            const header = displayedEc.h.join(';');
-            const lines = (displayedEc.r || []).map((row) => row.join(';'));
-            const blob = new Blob(['\ufeff' + [header, ...lines].join('\r\n')], {
-              type: 'text/csv;charset=utf-8;',
-            });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `estoque_central_${new Date().toISOString().slice(0, 10)}.csv`;
-            a.click();
-          }}
-          className="btn"
-          style={{ padding: '7px 14px', fontSize: '12px', background: '#0D9488', color: '#fff' }}
-        >
-          📥 Exportar CSV
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+          <button
+            type="button"
+            onClick={() => {
+              const header = displayedEc.h.join(';');
+              const lines = (displayedEc.r || []).map((row) => row.join(';'));
+              const blob = new Blob(['\ufeff' + [header, ...lines].join('\r\n')], {
+                type: 'text/csv;charset=utf-8;',
+              });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `estoque_central_${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+            }}
+            className="btn"
+            style={{ padding: '7px 14px', fontSize: '12px', background: '#0D9488', color: '#fff' }}
+          >
+            📥 Exportar CSV
+          </button>
 
-        <span>{rows.length} linhas</span>
+          <span className="text-xs font-bold text-zinc-600">{rows.length} linhas</span>
+        </div>
       </div>
 
       {/* Banners Informativos de Atualização */}

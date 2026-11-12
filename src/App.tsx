@@ -44,6 +44,23 @@ import { ProdutosView } from './components/ProdutosView';
 import { PopupsSalvosView } from './components/PopupsSalvosView';
 import { ExportGradeView } from './components/ExportGradeView';
 import { CheckLancamentoGradeView } from './components/CheckLancamentoGradeView';
+import {
+  LayoutDashboard,
+  Layers,
+  FileSpreadsheet,
+  ClipboardCheck,
+  Menu,
+  X,
+  BookmarkCheck,
+  CheckSquare,
+  BarChart2,
+  Sliders,
+  CalendarDays,
+  CalendarRange,
+  PackageSearch,
+  ChevronRight,
+  ShieldCheck,
+} from 'lucide-react';
 
 type TabKey = 'dashboard' | 'popups_salvos' | 'export_grade' | 'check_grade' | 'resumo' | 'ajustes' | 'dif_diaria' | 'dif_mensal' | 'ec' | 'recontagem' | 'produtos';
 
@@ -52,6 +69,7 @@ export default function App() {
   const [data, setData] = useState<RawData>(initialRawData);
 
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [history, setHistory] = useState<{ data: RawData; desc: string }[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
@@ -1023,8 +1041,8 @@ export default function App() {
       {/* Top Black Bar */}
       <div className="top-black-bar print:hidden" />
 
-      {/* Main Navigation Tabs */}
-      <nav className="app-nav print:hidden">
+      {/* Main Navigation Tabs - Desktop */}
+      <nav className="app-nav print:hidden hidden md:flex">
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginRight: '6px' }}>
           <b>ESTOQUE OFICIAL GUARABIRA</b>
           <span
@@ -1141,14 +1159,6 @@ export default function App() {
           ESTOQUE CENTRAL
         </button>
 
-
-
-
-
-
-
-
-
         <button
           className={activeTab === 'recontagem' ? 'on' : ''}
           onClick={() => setActiveTab('recontagem')}
@@ -1191,8 +1201,390 @@ export default function App() {
         </button>
       </nav>
 
+      {/* Mobile Top Header */}
+      <header className="md:hidden print:hidden sticky top-0 z-30 bg-[#FFC000] border-b border-amber-500 shadow-sm">
+        <div className="flex items-center justify-between px-3 py-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-extrabold text-xs tracking-tight text-zinc-950 truncate">
+              ESTOQUE GUARABIRA
+            </span>
+            <span
+              className={`w-2 h-2 rounded-full shrink-0 ${isRealtimeActive ? 'bg-emerald-600 shadow-[0_0_6px_#16a34a]' : 'bg-amber-500'}`}
+              title={isRealtimeActive ? 'Conectado em tempo real' : 'Conectando...'}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="flex items-center gap-1.5 bg-zinc-900 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg active:scale-95 transition-transform shrink-0 shadow-sm"
+          >
+            <Menu size={14} />
+            <span>Todas as Abas</span>
+            {(savedPopups.length > 0 || (data.recontagens?.length || 0) > 0) && (
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+            )}
+          </button>
+        </div>
+
+        {/* Scrollable Tabs Bar on Mobile */}
+        <div className="flex overflow-x-auto gap-1.5 px-2.5 py-1.5 bg-amber-400/70 border-t border-amber-400/80 scrollbar-none">
+          <button
+            type="button"
+            onClick={() => setActiveTab('dashboard')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'dashboard' ? 'bg-zinc-900 text-amber-300 shadow-sm' : 'bg-amber-500/50 text-zinc-900'}`}
+          >
+            <LayoutDashboard size={13} />
+            <span>Dashboard</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('ec')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'ec' ? 'bg-zinc-900 text-amber-300 shadow-sm' : 'bg-amber-500/50 text-zinc-900'}`}
+          >
+            <Layers size={13} />
+            <span>02.05.02</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('export_grade')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'export_grade' ? 'bg-emerald-800 text-white shadow-sm' : 'bg-emerald-700/30 text-emerald-950'}`}
+          >
+            <FileSpreadsheet size={13} />
+            <span>Grade</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('recontagem')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'recontagem' ? 'bg-amber-700 text-white shadow-sm' : 'bg-amber-600/30 text-amber-950'}`}
+          >
+            <ClipboardCheck size={13} />
+            <span>Recontar</span>
+            {(data.recontagens?.length || 0) > 0 && (
+              <span className="bg-amber-200 text-amber-900 text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">
+                {data.recontagens?.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('popups_salvos')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'popups_salvos' ? 'bg-purple-800 text-white shadow-sm' : 'bg-purple-700/30 text-purple-950'}`}
+          >
+            <BookmarkCheck size={13} />
+            <span>Pop-ups</span>
+            {savedPopups.length > 0 && (
+              <span className="bg-amber-300 text-black text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">
+                {savedPopups.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('check_grade')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'check_grade' ? 'bg-blue-800 text-white shadow-sm' : 'bg-blue-700/30 text-blue-950'}`}
+          >
+            <CheckSquare size={13} />
+            <span>Check Grade</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('produtos')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'produtos' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-800/30 text-slate-950'}`}
+          >
+            <PackageSearch size={13} />
+            <span>Produtos</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('resumo')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'resumo' ? 'bg-zinc-900 text-white shadow-sm' : 'bg-amber-500/50 text-zinc-900'}`}
+          >
+            <BarChart2 size={13} />
+            <span>Resumo</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('dif_diaria')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'dif_diaria' ? 'bg-zinc-900 text-white shadow-sm' : 'bg-amber-500/50 text-zinc-900'}`}
+          >
+            <CalendarDays size={13} />
+            <span>DIF Diária</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('dif_mensal')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'dif_mensal' ? 'bg-zinc-900 text-white shadow-sm' : 'bg-amber-500/50 text-zinc-900'}`}
+          >
+            <CalendarRange size={13} />
+            <span>DIF Mensal</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('ajustes')}
+            className={`shrink-0 px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1 ${activeTab === 'ajustes' ? 'bg-zinc-900 text-white shadow-sm' : 'bg-amber-500/50 text-zinc-900'}`}
+          >
+            <Sliders size={13} />
+            <span>Ajustes</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Drawer Menu (Sheet) */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end md:hidden animate-fade-in"
+          onClick={() => setIsMobileMenuOpen(false)}
+        >
+          <div
+            className="bg-white rounded-t-2xl max-h-[85vh] overflow-y-auto p-4 flex flex-col gap-3 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-200">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
+                <h3 className="font-extrabold text-sm text-zinc-900">Todas as Abas do Sistema</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center font-bold text-sm active:bg-zinc-200"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 px-2">
+                Operações Diárias
+              </span>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'dashboard' ? 'bg-amber-50 text-amber-900 border border-amber-300 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                    <LayoutDashboard size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">DASHBOARD GERAL</div>
+                    <div className="text-[10px] text-zinc-500">Ranking Faltas, Sobras e Saldo</div>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-zinc-400" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('ec'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'ec' ? 'bg-amber-50 text-amber-900 border border-amber-300 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-800 flex items-center justify-center">
+                    <Layers size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">ESTOQUE CENTRAL (02.05.02)</div>
+                    <div className="text-[10px] text-zinc-500">Importação e conferência de relatórios</div>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-zinc-400" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('export_grade'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'export_grade' ? 'bg-emerald-50 text-emerald-900 border border-emerald-300 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center">
+                    <FileSpreadsheet size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">EXPORTAR GRADE</div>
+                    <div className="text-[10px] text-zinc-500">Ajuste de grade e congelamentos</div>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-zinc-400" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('recontagem'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'recontagem' ? 'bg-amber-50 text-amber-900 border border-amber-300 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                    <ClipboardCheck size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">RECONTAGEM FÍSICA</div>
+                    <div className="text-[10px] text-zinc-500">Auditoria cega e conferência física</div>
+                  </div>
+                </div>
+                {(data.recontagens?.length || 0) > 0 ? (
+                  <span className="bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full font-extrabold">
+                    {data.recontagens?.length}
+                  </span>
+                ) : (
+                  <ChevronRight size={14} className="text-zinc-400" />
+                )}
+              </button>
+            </div>
+
+            <div className="space-y-1 pt-2 border-t border-zinc-100">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 px-2">
+                Auditoria & Controle
+              </span>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('popups_salvos'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'popups_salvos' ? 'bg-purple-50 text-purple-900 border border-purple-300 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center">
+                    <BookmarkCheck size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">POP-UPS SALVOS</div>
+                    <div className="text-[10px] text-zinc-500">Divergências gravadas para análise</div>
+                  </div>
+                </div>
+                {savedPopups.length > 0 ? (
+                  <span className="bg-purple-600 text-white text-[10px] px-2 py-0.5 rounded-full font-extrabold">
+                    {savedPopups.length}
+                  </span>
+                ) : (
+                  <ChevronRight size={14} className="text-zinc-400" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('check_grade'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'check_grade' ? 'bg-blue-50 text-blue-900 border border-blue-300 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center">
+                    <CheckSquare size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">CHECK DE LANÇAMENTO</div>
+                    <div className="text-[10px] text-zinc-500">Validação relatório Promax vs Planejado</div>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-zinc-400" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('produtos'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'produtos' ? 'bg-slate-50 text-slate-900 border border-slate-300 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center">
+                    <PackageSearch size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">TODOS OS PRODUTOS</div>
+                    <div className="text-[10px] text-zinc-500">Catálogo geral, preços e status</div>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-zinc-400" />
+              </button>
+            </div>
+
+            <div className="space-y-1 pt-2 border-t border-zinc-100">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 px-2">
+                Histórico & Ajustes
+              </span>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('resumo'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'resumo' ? 'bg-zinc-100 text-zinc-900 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-800 flex items-center justify-center">
+                    <BarChart2 size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">RESUMO</div>
+                    <div className="text-[10px] text-zinc-500">Balanço físico vs contábil</div>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-zinc-400" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('ajustes'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'ajustes' ? 'bg-zinc-100 text-zinc-900 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-800 flex items-center justify-center">
+                    <Sliders size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">AJUSTES</div>
+                    <div className="text-[10px] text-zinc-500">Lançamentos manuais</div>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-zinc-400" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('dif_diaria'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'dif_diaria' ? 'bg-zinc-100 text-zinc-900 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-800 flex items-center justify-center">
+                    <CalendarDays size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">DIF DIÁRIA</div>
+                    <div className="text-[10px] text-zinc-500">Acompanhamento diário</div>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-zinc-400" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('dif_mensal'); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${activeTab === 'dif_mensal' ? 'bg-zinc-100 text-zinc-900 font-bold' : 'hover:bg-zinc-50 text-zinc-800'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-800 flex items-center justify-center">
+                    <CalendarRange size={18} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold">DIF MENSAL</div>
+                    <div className="text-[10px] text-zinc-500">Fechamentos do mês</div>
+                  </div>
+                </div>
+                <ChevronRight size={14} className="text-zinc-400" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
-      <main className="flex-1 w-full pb-10">
+      <main className="flex-1 w-full pb-20 md:pb-10">
         {activeTab === 'resumo' && (
           <ResumoView
             calculated={calculatedProducts}
@@ -1426,6 +1818,68 @@ export default function App() {
         onConfirm={() => protectedAction && protectedAction()}
         title="Autenticação Necessária"
       />
+
+      {/* Fixed Mobile Bottom Tab Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-zinc-200 grid grid-cols-5 items-center h-14 pb-safe md:hidden shadow-[0_-2px_10px_rgba(0,0,0,0.06)] print:hidden">
+        <button
+          type="button"
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex flex-col items-center justify-center h-full gap-0.5 ${activeTab === 'dashboard' ? 'text-amber-600 font-bold' : 'text-zinc-500 active:text-zinc-900'}`}
+        >
+          <LayoutDashboard size={18} className={activeTab === 'dashboard' ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
+          <span className="text-[10px] tracking-tight">Dashboard</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('ec')}
+          className={`flex flex-col items-center justify-center h-full gap-0.5 ${activeTab === 'ec' ? 'text-amber-600 font-bold' : 'text-zinc-500 active:text-zinc-900'}`}
+        >
+          <Layers size={18} className={activeTab === 'ec' ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
+          <span className="text-[10px] tracking-tight">02.05.02</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('export_grade')}
+          className={`flex flex-col items-center justify-center h-full gap-0.5 ${activeTab === 'export_grade' ? 'text-emerald-700 font-bold' : 'text-zinc-500 active:text-zinc-900'}`}
+        >
+          <FileSpreadsheet size={18} className={activeTab === 'export_grade' ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
+          <span className="text-[10px] tracking-tight">Grade</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('recontagem')}
+          className={`flex flex-col items-center justify-center h-full gap-0.5 relative ${activeTab === 'recontagem' ? 'text-amber-700 font-bold' : 'text-zinc-500 active:text-zinc-900'}`}
+        >
+          <div className="relative">
+            <ClipboardCheck size={18} className={activeTab === 'recontagem' ? 'stroke-[2.5]' : 'stroke-[1.8]'} />
+            {(data.recontagens?.length || 0) > 0 && (
+              <span className="absolute -top-1 -right-2 bg-amber-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-extrabold">
+                {data.recontagens?.length}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] tracking-tight">Recontar</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="flex flex-col items-center justify-center h-full gap-0.5 relative text-zinc-500 active:text-zinc-900"
+        >
+          <div className="relative">
+            <Menu size={18} className="stroke-[1.8]" />
+            {savedPopups.length > 0 && (
+              <span className="absolute -top-1 -right-2 bg-purple-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-extrabold">
+                {savedPopups.length}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] tracking-tight">Mais</span>
+        </button>
+      </nav>
     </div>
   );
 }
